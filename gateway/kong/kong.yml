@@ -1,0 +1,639 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: auth-service
+    url: http://auth:8010
+    plugins:
+      - name: correlation-id
+        config:
+          header_name: X-Request-ID
+          generator: uuid#counter
+          echo_downstream: true
+      - name: prometheus
+        config:
+          per_consumer: false
+          status_code_metrics: true
+          latency_metrics: true
+          bandwidth_metrics: true
+
+  - name: booking-service
+    url: http://booking:8020
+    plugins:
+      - name: correlation-id
+        config:
+          header_name: X-Request-ID
+          generator: uuid#counter
+          echo_downstream: true
+      - name: prometheus
+        config:
+          per_consumer: false
+          status_code_metrics: true
+          latency_metrics: true
+          bandwidth_metrics: true
+
+  - name: payment-service
+    url: http://payment:8030
+    plugins:
+      - name: correlation-id
+        config:
+          header_name: X-Request-ID
+          generator: uuid#counter
+          echo_downstream: true
+      - name: prometheus
+        config:
+          per_consumer: false
+          status_code_metrics: true
+          latency_metrics: true
+          bandwidth_metrics: true
+
+  - name: invoicing-service
+    url: http://invoicing:8040
+    plugins:
+      - name: correlation-id
+        config:
+          header_name: X-Request-ID
+          generator: uuid#counter
+          echo_downstream: true
+      - name: prometheus
+        config:
+          per_consumer: false
+          status_code_metrics: true
+          latency_metrics: true
+          bandwidth_metrics: true
+
+  - name: mess-service
+    url: http://mess:8050
+    plugins:
+      - name: correlation-id
+        config:
+          header_name: X-Request-ID
+          generator: uuid#counter
+          echo_downstream: true
+      - name: prometheus
+        config:
+          per_consumer: false
+          status_code_metrics: true
+          latency_metrics: true
+          bandwidth_metrics: true
+
+  - name: orders-service
+    url: http://orders:8060
+    plugins:
+      - name: correlation-id
+        config:
+          header_name: X-Request-ID
+          generator: uuid#counter
+          echo_downstream: true
+      - name: prometheus
+        config:
+          per_consumer: false
+          status_code_metrics: true
+          latency_metrics: true
+          bandwidth_metrics: true
+
+  - name: notification-service
+    url: http://notification:8070
+    plugins:
+      - name: correlation-id
+        config:
+          header_name: X-Request-ID
+          generator: uuid#counter
+          echo_downstream: true
+      - name: prometheus
+        config:
+          per_consumer: false
+          status_code_metrics: true
+          latency_metrics: true
+          bandwidth_metrics: true
+
+routes:
+  # Auth Service Routes (prefix-strip so upstream sees /health, /register, etc.)
+  - name: auth
+    service: auth-service
+    paths:
+      - /api/auth
+    strip_path: true
+    methods:
+      - GET
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+      - OPTIONS
+    plugins:
+      - name: rate-limiting
+        config:
+          second: 20
+          minute: 200
+          hour: 2000
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          
+
+  # Booking Service Routes
+  - name: booking-health
+    service: booking-service
+    paths:
+      - /api/booking/health
+    methods:
+      - GET
+    strip_path: true
+
+  # Forward any GET under /api/booking/* (so /api/booking/health -> /health)
+  - name: booking-base-get
+    service: booking-service
+    paths:
+      - /api/booking
+    methods:
+      - GET
+    strip_path: true
+
+  - name: booking-properties
+    service: booking-service
+    paths:
+      - /api/booking/properties
+    methods:
+      - GET
+      - POST
+    strip_path: false
+
+  - name: booking-rooms
+    service: booking-service
+    paths:
+      - /api/booking/rooms
+    methods:
+      - GET
+    strip_path: false
+
+  - name: booking-availability
+    service: booking-service
+    paths:
+      - /api/booking/availability
+    methods:
+      - GET
+    strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          second: 20
+          minute: 200
+          hour: 2000
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          
+
+  - name: booking-requests
+    service: booking-service
+    paths:
+      - /api/booking/requests
+    methods:
+      - GET
+      - POST
+    strip_path: false
+
+  - name: booking-requests-by-id
+    service: booking-service
+    paths:
+      - /api/booking/requests/(?<booking_id>[a-f0-9-]+)
+    methods:
+      - GET
+      - PUT
+      - DELETE
+    strip_path: false
+
+  - name: booking-confirm
+    service: booking-service
+    paths:
+      - /api/booking/requests/(?<booking_id>[a-f0-9-]+)/confirm
+    methods:
+      - POST
+    strip_path: false
+
+  # Payment Service Routes
+  - name: payment-health
+    service: payment-service
+    paths:
+      - /api/payments/health
+    methods:
+      - GET
+    strip_path: true
+
+  # Forward any GET under /api/payments/* to upstream without the prefix (so /api/payments/health -> /health)
+  - name: payment-base-get
+    service: payment-service
+    paths:
+      - /api/payments
+    methods:
+      - GET
+    strip_path: true
+
+  - name: payment-intents
+    service: payment-service
+    paths:
+      - /api/payments/intents
+    methods:
+      - GET
+      - POST
+      - OPTIONS
+    strip_path: false
+
+  - name: payment-intents-by-id
+    service: payment-service
+    paths:
+      - /api/payments/intents/(?<intent_id>[a-zA-Z0-9_-]+)
+    methods:
+      - GET
+    strip_path: false
+
+  - name: payment-webhooks-razorpay
+    service: payment-service
+    paths:
+      - /api/payments/webhooks/razorpay
+    methods:
+      - POST
+      - OPTIONS
+    strip_path: false
+    plugins:
+      - name: ip-restriction
+        config:
+          allow:
+            - "0.0.0.0/0"  # Allow all in development, restrict in production
+
+  - name: payment-subscriptions
+    service: payment-service
+    paths:
+      - /api/payments/subscriptions
+    methods:
+      - GET
+      - POST
+      - OPTIONS
+    strip_path: false
+
+  - name: payment-receipts
+    service: payment-service
+    paths:
+      - /api/payments/receipts
+    methods:
+      - GET
+      - OPTIONS
+    strip_path: false
+
+  # Dummy Rent Payment Routes (Payment Service)
+  - name: payment-dummy-rent
+    service: payment-service
+    paths:
+      - /api/payments/dummy/rent
+    methods:
+      - POST
+      - OPTIONS
+    strip_path: false
+
+  - name: payment-admin-rent
+    service: payment-service
+    paths:
+      - /api/payments/admin/rent
+    methods:
+      - GET
+      - OPTIONS
+    strip_path: false
+
+  # Advance Payments (dummy + admin list)
+  - name: payment-dummy-advance
+    service: payment-service
+    paths:
+      - /api/payments/dummy/advance
+    methods:
+      - POST
+      - OPTIONS
+    strip_path: false
+
+  - name: payment-admin-advance
+    service: payment-service
+    paths:
+      - /api/payments/admin/advance
+    methods:
+      - GET
+      - OPTIONS
+    strip_path: false
+
+  # PG Admin Endpoints
+  - name: payment-admin-pg
+    service: payment-service
+    paths:
+      - /api/payments/admin/pg
+    methods:
+      - GET
+      - POST
+      - OPTIONS
+    strip_path: false
+
+  - name: payment-admin-pg-admins
+    service: payment-service
+    paths:
+      - /api/payments/admin/pg/admins
+    methods:
+      - POST
+      - OPTIONS
+    strip_path: false
+
+  - name: payment-admin-pg-admins-by-pg
+    service: payment-service
+    paths:
+      - /api/payments/admin/pg/(?<pg_id>[a-f0-9-]+)/admins
+    methods:
+      - GET
+      - OPTIONS
+    strip_path: false
+
+  - name: payment-admin-pg-memberships
+    service: payment-service
+    paths:
+      - /api/payments/admin/pg/memberships
+    methods:
+      - POST
+      - OPTIONS
+    strip_path: false
+
+  - name: payment-admin-pg-memberships-by-pg
+    service: payment-service
+    paths:
+      - /api/payments/admin/pg/(?<pg_id>[a-f0-9-]+)/memberships
+    methods:
+      - GET
+      - OPTIONS
+    strip_path: false
+
+  - name: payment-admin-pg-memberships-delete
+    service: payment-service
+    paths:
+      - /api/payments/admin/pg/memberships/(?<membership_id>[a-f0-9-]+)
+    methods:
+      - DELETE
+      - OPTIONS
+    strip_path: false
+
+  # Invoicing Service Routes
+  - name: invoicing-health
+    service: invoicing-service
+    paths:
+      - /api/invoices/health
+    methods:
+      - GET
+    strip_path: true
+
+  # Forward any GET under /api/invoices/* (so /api/invoices/health -> /health)
+  - name: invoicing-base-get
+    service: invoicing-service
+    paths:
+      - /api/invoices
+    methods:
+      - GET
+    strip_path: true
+
+  - name: invoices
+    service: invoicing-service
+    paths:
+      - /api/invoices
+    methods:
+      - GET
+      - POST
+    strip_path: false
+
+  - name: invoices-by-id
+    service: invoicing-service
+    paths:
+      - /api/invoices/(?<invoice_id>[a-f0-9-]+)
+    methods:
+      - GET
+    strip_path: false
+
+  - name: invoices-pdf
+    service: invoicing-service
+    paths:
+      - /api/invoices/(?<invoice_id>[a-f0-9-]+)/pdf
+    methods:
+      - GET
+    strip_path: false
+
+  - name: invoices-send
+    service: invoicing-service
+    paths:
+      - /api/invoices/(?<invoice_id>[a-f0-9-]+)/send
+    methods:
+      - POST
+    strip_path: false
+
+  # Mess Service Routes
+  - name: mess-health
+    service: mess-service
+    paths:
+      - /api/mess/health
+    methods:
+      - GET
+    strip_path: true
+
+  # Forward any GET under /api/mess/* (so /api/mess/health -> /health)
+  - name: mess-base-get
+    service: mess-service
+    paths:
+      - /api/mess
+    methods:
+      - GET
+    strip_path: true
+
+  - name: mess-menu
+    service: mess-service
+    paths:
+      - /api/mess/menu
+    methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+    strip_path: false
+
+  - name: mess-coupons
+    service: mess-service
+    paths:
+      - /api/mess/coupons
+    methods:
+      - GET
+      - POST
+      - OPTIONS
+    strip_path: false
+
+  - name: mess-attendance
+    service: mess-service
+    paths:
+      - /api/mess/attendance
+    methods:
+      - GET
+      - POST
+    strip_path: false
+
+  - name: mess-attendance-mark
+    service: mess-service
+    paths:
+      - /api/mess/attendance/mark
+    methods:
+      - POST
+    strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          second: 5
+          minute: 50
+          hour: 500
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          
+
+  # Orders Service Routes
+  - name: orders-health
+    service: orders-service
+    paths:
+      - /api/orders/health
+    methods:
+      - GET
+    strip_path: false
+
+  - name: orders
+    service: orders-service
+    paths:
+      - /api/orders
+    methods:
+      - GET
+      - POST
+      - OPTIONS
+    strip_path: false
+
+  - name: orders-by-id
+    service: orders-service
+    paths:
+      - /api/orders/(?<order_id>[a-f0-9-]+)
+    methods:
+      - GET
+      - PUT
+      - OPTIONS
+    strip_path: false
+
+  - name: orders-cancel
+    service: orders-service
+    paths:
+      - /api/orders/(?<order_id>[a-f0-9-]+)/cancel
+    methods:
+      - POST
+      - PUT
+      - OPTIONS
+    strip_path: false
+
+  - name: orders-kitchen
+    service: orders-service
+    paths:
+      - /api/orders/kitchen
+    methods:
+      - GET
+    strip_path: false
+
+  - name: orders-kitchen-update
+    service: orders-service
+    paths:
+      - /api/orders/(?<order_id>[a-f0-9-]+)/kitchen
+    methods:
+      - PUT
+    strip_path: false
+
+  # Notification Service Routes
+  - name: notification-health
+    service: notification-service
+    paths:
+      - /api/notify/health
+    methods:
+      - GET
+    strip_path: true
+
+  # Forward any GET under /api/notify/* (so /api/notify/health -> /health)
+  - name: notification-base-get
+    service: notification-service
+    paths:
+      - /api/notify
+    methods:
+      - GET
+    strip_path: true
+
+  - name: notifications
+    service: notification-service
+    paths:
+      - /api/notify
+    methods:
+      - GET
+      - POST
+    strip_path: false
+
+  - name: notification-templates
+    service: notification-service
+    paths:
+      - /api/notify/templates
+    methods:
+      - GET
+      - POST
+    strip_path: false
+
+  # Mess Coupons Redeem Route
+  - name: mess-coupons-redeem
+    service: mess-service
+    paths:
+      - /api/mess/coupons/redeem
+    methods:
+      - POST
+      - OPTIONS
+    strip_path: false
+
+plugins:
+  # Global CORS plugin
+  - name: cors
+    config:
+      origins:
+        - "http://localhost:3000"
+        - "http://localhost:3001"
+        - "http://127.0.0.1:3000"
+        - "http://127.0.0.1:3001"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      headers:
+        - Accept
+        - Accept-Version
+        - Authorization
+        - Content-Length
+        - Content-MD5
+        - Content-Type
+        - Date
+        - X-Auth-Token
+        - X-Request-ID
+      exposed_headers:
+        - X-Auth-Token
+        - X-Request-ID
+      credentials: true
+      max_age: 3600
+
+  # Global request transformer to add common headers
+  
+
+  # Global response transformer to add security headers
+  - name: response-transformer
+    config:
+      add:
+        headers:
+          - "X-Content-Type-Options:nosniff"
+          - "X-Frame-Options:DENY"
+          - "X-XSS-Protection:1; mode=block"

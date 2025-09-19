@@ -1,0 +1,101 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Database
+*.db
+*.sqlite3
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.next/
+out/
+
+# Docker
+.dockerignore
+
+# Kubernetes
+*.kubeconfig
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# MinIO data
+minio-data/
+
+# Prometheus data
+prometheus-data/
+
+# Grafana data
+grafana-data/
+
+# PostgreSQL data
+postgres-data/
+
+# Redis data
+redis-data/
+
+# RabbitMQ data
+rabbitmq-data/
+
+# Loki data
+loki-data/
+
+# Test artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+test-results/
+
+# Temporary files
+tmp/
+temp/

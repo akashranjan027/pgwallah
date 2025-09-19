@@ -1,0 +1,108 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Kong Gateway metrics
+  - job_name: 'kong'
+    static_configs:
+      - targets: ['kong:8001']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Auth Service
+  - job_name: 'auth-service'
+    static_configs:
+      - targets: ['auth:8010']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Booking Service
+  - job_name: 'booking-service'
+    static_configs:
+      - targets: ['booking:8020']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Payment Service
+  - job_name: 'payment-service'
+    static_configs:
+      - targets: ['payment:8030']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Invoicing Service
+  - job_name: 'invoicing-service'
+    static_configs:
+      - targets: ['invoicing:8040']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Mess Service
+  - job_name: 'mess-service'
+    static_configs:
+      - targets: ['mess:8050']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Orders Service
+  - job_name: 'orders-service'
+    static_configs:
+      - targets: ['orders:8060']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Notification Service
+  - job_name: 'notification-service'
+    static_configs:
+      - targets: ['notification:8070']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # PostgreSQL Exporter (optional - can be added later)
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+
+  # Redis Exporter (optional - can be added later)
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']
+
+  # RabbitMQ
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['rabbitmq:15692']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # MinIO
+  - job_name: 'minio'
+    static_configs:
+      - targets: ['minio:9000']
+    metrics_path: '/minio/v2/metrics/cluster'
+    scrape_interval: 30s
+
+  # Node Exporter (for system metrics - optional)
+  # - job_name: 'node'
+  #   static_configs:
+  #     - targets: ['node-exporter:9100']
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+# Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
+# rule_files:
+#   - "alert_rules.yml"

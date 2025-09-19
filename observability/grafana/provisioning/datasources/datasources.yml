@@ -1,0 +1,81 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      maxLines: 1000
+
+  # PostgreSQL datasources for each service (optional, for custom queries)
+  - name: Auth Database
+    type: postgres
+    url: postgres-auth:5432
+    database: auth_db
+    user: auth_user
+    secureJsonData:
+      password: auth_password
+    editable: false
+
+  - name: Booking Database
+    type: postgres
+    url: postgres-booking:5432
+    database: booking_db
+    user: booking_user
+    secureJsonData:
+      password: booking_password
+    editable: false
+
+  - name: Payment Database
+    type: postgres
+    url: postgres-payment:5432
+    database: payment_db
+    user: payment_user
+    secureJsonData:
+      password: payment_password
+    editable: false
+
+  - name: Invoicing Database
+    type: postgres
+    url: postgres-invoicing:5432
+    database: invoicing_db
+    user: invoicing_user
+    secureJsonData:
+      password: invoicing_password
+    editable: false
+
+  - name: Mess Database
+    type: postgres
+    url: postgres-mess:5432
+    database: mess_db
+    user: mess_user
+    secureJsonData:
+      password: mess_password
+    editable: false
+
+  - name: Orders Database
+    type: postgres
+    url: postgres-orders:5432
+    database: orders_db
+    user: orders_user
+    secureJsonData:
+      password: orders_password
+    editable: false
+
+  - name: Notification Database
+    type: postgres
+    url: postgres-notification:5432
+    database: notification_db
+    user: notification_user
+    secureJsonData:
+      password: notification_password
+    editable: false

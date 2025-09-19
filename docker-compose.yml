@@ -1,0 +1,604 @@
+networks:
+  pgwallah-network:
+    driver: bridge
+
+volumes:
+  postgres-auth-data:
+  postgres-booking-data:
+  postgres-payment-data:
+  postgres-invoicing-data:
+  postgres-mess-data:
+  postgres-orders-data:
+  postgres-notification-data:
+  redis-data:
+  rabbitmq-data:
+  minio-data:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+
+services:
+  # ===================
+  # DATABASE SERVICES
+  # ===================
+  
+  postgres-auth:
+    image: postgres:15-alpine
+    container_name: pgwallah-postgres-auth
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: auth_user
+      POSTGRES_PASSWORD: auth_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-auth-data:/var/lib/postgresql/data
+    networks:
+      - pgwallah-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth_user -d auth_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-booking:
+    image: postgres:15-alpine
+    container_name: pgwallah-postgres-booking
+    environment:
+      POSTGRES_DB: booking_db
+      POSTGRES_USER: booking_user
+      POSTGRES_PASSWORD: booking_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-booking-data:/var/lib/postgresql/data
+    networks:
+      - pgwallah-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U booking_user -d booking_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-payment:
+    image: postgres:15-alpine
+    container_name: pgwallah-postgres-payment
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: payment_user
+      POSTGRES_PASSWORD: payment_password
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-payment-data:/var/lib/postgresql/data
+    networks:
+      - pgwallah-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payment_user -d payment_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-invoicing:
+    image: postgres:15-alpine
+    container_name: pgwallah-postgres-invoicing
+    environment:
+      POSTGRES_DB: invoicing_db
+      POSTGRES_USER: invoicing_user
+      POSTGRES_PASSWORD: invoicing_password
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres-invoicing-data:/var/lib/postgresql/data
+    networks:
+      - pgwallah-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U invoicing_user -d invoicing_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-mess:
+    image: postgres:15-alpine
+    container_name: pgwallah-postgres-mess
+    environment:
+      POSTGRES_DB: mess_db
+      POSTGRES_USER: mess_user
+      POSTGRES_PASSWORD: mess_password
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres-mess-data:/var/lib/postgresql/data
+    networks:
+      - pgwallah-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mess_user -d mess_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-orders:
+    image: postgres:15-alpine
+    container_name: pgwallah-postgres-orders
+    environment:
+      POSTGRES_DB: orders_db
+      POSTGRES_USER: orders_user
+      POSTGRES_PASSWORD: orders_password
+    ports:
+      - "5437:5432"
+    volumes:
+      - postgres-orders-data:/var/lib/postgresql/data
+    networks:
+      - pgwallah-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orders_user -d orders_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-notification:
+    image: postgres:15-alpine
+    container_name: pgwallah-postgres-notification
+    environment:
+      POSTGRES_DB: notification_db
+      POSTGRES_USER: notification_user
+      POSTGRES_PASSWORD: notification_password
+    ports:
+      - "5438:5432"
+    volumes:
+      - postgres-notification-data:/var/lib/postgresql/data
+    networks:
+      - pgwallah-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notification_user -d notification_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===================
+  # CACHE & MESSAGING
+  # ===================
+
+  redis:
+    image: redis:7-alpine
+    container_name: pgwallah-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - pgwallah-network
+    command: redis-server --appendonly yes --requirepass redis_password
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a redis_password ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: pgwallah-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: rabbitmq_user
+      RABBITMQ_DEFAULT_PASS: rabbitmq_password
+    ports:
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - pgwallah-network
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ===================
+  # OBJECT STORAGE
+  # ===================
+
+  minio:
+    image: minio/minio:latest
+    container_name: pgwallah-minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    ports:
+      - "9000:9000"   # API port
+      - "9001:9001"   # Console port
+    volumes:
+      - minio-data:/data
+    networks:
+      - pgwallah-network
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ===================
+  # API GATEWAY
+  # ===================
+
+  kong:
+    image: kong:3.4
+    container_name: pgwallah-kong
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+      KONG_ADMIN_GUI_URL: "http://localhost:8002"
+    ports:
+      - "8000:8000"   # Proxy port
+      - "8001:8001"   # Admin API port
+      - "8002:8002"   # Admin GUI port
+    volumes:
+      - ./gateway/kong:/kong/declarative
+    networks:
+      - pgwallah-network
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD-SHELL", "kong health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ===================
+  # MICROSERVICES
+  # ===================
+
+  auth:
+    build:
+      context: ./services/auth
+      dockerfile: Dockerfile.simple
+    container_name: pgwallah-auth
+    environment:
+      DATABASE_URL: postgresql+asyncpg://auth_user:auth_password@postgres-auth:5432/auth_db
+      REDIS_URL: redis://:redis_password@redis:6379/0
+      JWT_SECRET_KEY: auth_jwt_secret_key_dev
+      JWT_ALGORITHM: RS256
+      ENVIRONMENT: development
+    ports:
+      - "8010:8010"
+    volumes:
+      - ./services/auth:/app
+    networks:
+      - pgwallah-network
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8010 --reload
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8010/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  booking:
+    build:
+      context: ./services/booking
+      dockerfile: Dockerfile
+    container_name: pgwallah-booking
+    environment:
+      DATABASE_URL: postgresql://booking_user:booking_password@postgres-booking:5432/booking_db
+      REDIS_URL: redis://:redis_password@redis:6379/1
+      AUTH_SERVICE_URL: http://auth:8010
+      PAYMENT_SERVICE_URL: http://payment:8030
+      ENVIRONMENT: development
+    ports:
+      - "8020:8020"
+    volumes:
+      - ./services/booking:/app
+    networks:
+      - pgwallah-network
+    depends_on:
+      postgres-booking:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      auth:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8020 --reload
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8020/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  payment:
+    build:
+      context: ./services/payment
+      dockerfile: Dockerfile
+    container_name: pgwallah-payment
+    environment:
+      DATABASE_URL: postgresql+asyncpg://payment_user:payment_password@postgres-payment:5432/payment_db
+      REDIS_URL: redis://:redis_password@redis:6379/2
+      RABBITMQ_URL: amqp://rabbitmq_user:rabbitmq_password@rabbitmq:5672/
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin123
+      RAZORPAY_KEY_ID: rzp_test_dummy_key
+      RAZORPAY_KEY_SECRET: dummy_secret
+      ENVIRONMENT: development
+    ports:
+      - "8030:8030"
+    volumes:
+      - ./services/payment:/app
+    networks:
+      - pgwallah-network
+    depends_on:
+      postgres-payment:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8030 --reload
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8030/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  invoicing:
+    build:
+      context: ./services/invoicing
+      dockerfile: Dockerfile
+    container_name: pgwallah-invoicing
+    environment:
+      DATABASE_URL: postgresql://invoicing_user:invoicing_password@postgres-invoicing:5432/invoicing_db
+      REDIS_URL: redis://:redis_password@redis:6379/3
+      RABBITMQ_URL: amqp://rabbitmq_user:rabbitmq_password@rabbitmq:5672/
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin123
+      AWS_ACCESS_KEY_ID: dummy_access_key
+      AWS_SECRET_ACCESS_KEY: dummy_secret_key
+      AWS_DEFAULT_REGION: ap-south-1
+      ENVIRONMENT: development
+    ports:
+      - "8040:8040"
+    volumes:
+      - ./services/invoicing:/app
+    networks:
+      - pgwallah-network
+    depends_on:
+      postgres-invoicing:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8040 --reload
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8040/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  mess:
+    build:
+      context: ./services/mess
+      dockerfile: Dockerfile
+      target: development
+    container_name: pgwallah-mess
+    environment:
+      DATABASE_URL: postgresql://mess_user:mess_password@postgres-mess:5432/mess_db
+      REDIS_URL: redis://:redis_password@redis:6379/4
+      RABBITMQ_URL: amqp://rabbitmq_user:rabbitmq_password@rabbitmq:5672/
+      ENVIRONMENT: development
+    ports:
+      - "8050:8050"
+    volumes:
+      - ./services/mess:/app
+    networks:
+      - pgwallah-network
+    depends_on:
+      postgres-mess:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8050 --reload
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8050/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  orders:
+    build:
+      context: ./services/orders
+      dockerfile: Dockerfile
+      target: development
+    container_name: pgwallah-orders
+    environment:
+      DATABASE_URL: postgresql://orders_user:orders_password@postgres-orders:5432/orders_db
+      REDIS_URL: redis://:redis_password@redis:6379/5
+      RABBITMQ_URL: amqp://rabbitmq_user:rabbitmq_password@rabbitmq:5672/
+      MESS_SERVICE_URL: http://mess:8050
+      PAYMENT_SERVICE_URL: http://payment:8030
+      ENVIRONMENT: development
+    ports:
+      - "8060:8060"
+    volumes:
+      - ./services/orders:/app
+    networks:
+      - pgwallah-network
+    depends_on:
+      postgres-orders:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8060 --reload
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8060/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  notification:
+    build:
+      context: ./services/notification
+      dockerfile: Dockerfile
+      target: development
+    container_name: pgwallah-notification
+    environment:
+      DATABASE_URL: postgresql://notification_user:notification_password@postgres-notification:5432/notification_db
+      REDIS_URL: redis://:redis_password@redis:6379/6
+      RABBITMQ_URL: amqp://rabbitmq_user:rabbitmq_password@rabbitmq:5672/
+      AWS_ACCESS_KEY_ID: dummy_access_key
+      AWS_SECRET_ACCESS_KEY: dummy_secret_key
+      AWS_DEFAULT_REGION: ap-south-1
+      GUPSHUP_API_KEY: dummy_gupshup_key
+      ENVIRONMENT: development
+    ports:
+      - "8070:8070"
+    volumes:
+      - ./services/notification:/app
+    networks:
+      - pgwallah-network
+    depends_on:
+      postgres-notification:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8070 --reload
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8070/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ===================
+  # FRONTEND
+  # ===================
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: pgwallah-frontend
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+      NEXT_PUBLIC_MINIO_ENDPOINT: http://localhost:9000
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - pgwallah-network
+    depends_on:
+      - kong
+    command: npm run dev
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ===================
+  # OBSERVABILITY
+  # ===================
+
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: pgwallah-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    networks:
+      - pgwallah-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: pgwallah-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: false
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - pgwallah-network
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  loki:
+    image: grafana/loki:2.8.3
+    container_name: pgwallah-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./observability/loki.yml:/etc/loki/local-config.yaml
+      - loki-data:/loki
+    networks:
+      - pgwallah-network
+    command: -config.file=/etc/loki/local-config.yaml
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:3100/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  promtail:
+    image: grafana/promtail:2.8.3
+    container_name: pgwallah-promtail
+    volumes:
+      - ./observability/promtail.yml:/etc/promtail/config.yml
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      - pgwallah-network
+    depends_on:
+      - loki
+    command: -config.file=/etc/promtail/config.yml
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:9080/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5

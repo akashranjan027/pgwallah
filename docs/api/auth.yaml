@@ -1,0 +1,477 @@
+openapi: 3.0.3
+info:
+  title: PGwallah Auth Service API
+  description: Authentication and user management service for PGwallah platform
+  version: 1.0.0
+  contact:
+    name: PGwallah Team
+    email: dev@pgwallah.com
+
+servers:
+  - url: http://localhost:8000/api/auth
+    description: Development server via Kong Gateway
+  - url: https://api.pgwallah.com/api/auth
+    description: Production server
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        email:
+          type: string
+          format: email
+          example: "tenant@example.com"
+        phone:
+          type: string
+          pattern: '^\+91[6-9]\d{9}$'
+          example: "+919876543210"
+        full_name:
+          type: string
+          example: "John Doe"
+        role:
+          $ref: '#/components/schemas/UserRole'
+        is_active:
+          type: boolean
+          example: true
+        is_verified:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - full_name
+        - role
+
+    UserRole:
+      type: string
+      enum:
+        - tenant
+        - admin
+        - staff
+      example: "tenant"
+
+    TenantProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        emergency_contact_name:
+          type: string
+          example: "Jane Doe"
+        emergency_contact_phone:
+          type: string
+          example: "+919876543211"
+        occupation:
+          type: string
+          example: "Software Engineer"
+        company:
+          type: string
+          example: "Tech Corp"
+        id_proof_type:
+          type: string
+          enum: [aadhaar, pan, passport, driving_license]
+        id_proof_number:
+          type: string
+          example: "ABCDE1234F"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          example: "SecurePassword123!"
+        full_name:
+          type: string
+          minLength: 2
+        phone:
+          type: string
+          pattern: '^\+91[6-9]\d{9}$'
+        role:
+          $ref: '#/components/schemas/UserRole'
+      required:
+        - email
+        - password
+        - full_name
+        - phone
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    RefreshRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+      required:
+        - refresh_token
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refresh_token:
+          type: string
+          example: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+        token_type:
+          type: string
+          example: "bearer"
+        expires_in:
+          type: integer
+          example: 3600
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+        - access_token
+        - refresh_token
+        - token_type
+        - expires_in
+        - user
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+        phone:
+          type: string
+          pattern: '^\+91[6-9]\d{9}$'
+        emergency_contact_name:
+          type: string
+        emergency_contact_phone:
+          type: string
+        occupation:
+          type: string
+        company:
+          type: string
+
+    ChangePasswordRequest:
+      type: object
+      properties:
+        current_password:
+          type: string
+        new_password:
+          type: string
+          minLength: 8
+      required:
+        - current_password
+        - new_password
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Invalid credentials"
+        message:
+          type: string
+          example: "The provided email or password is incorrect"
+        code:
+          type: string
+          example: "AUTH_001"
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - error
+        - message
+
+    JWKSResponse:
+      type: object
+      properties:
+        keys:
+          type: array
+          items:
+            type: object
+            properties:
+              kty:
+                type: string
+                example: "RSA"
+              use:
+                type: string
+                example: "sig"
+              kid:
+                type: string
+                example: "auth-key-1"
+              n:
+                type: string
+              e:
+                type: string
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns the health status of the auth service
+      tags:
+        - Health
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                    example: "1.0.0"
+
+  /register:
+    post:
+      summary: Register new user
+      description: Creates a new user account
+      tags:
+        - Authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /login:
+    post:
+      summary: User login
+      description: Authenticate user and return JWT tokens
+      tags:
+        - Authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /refresh:
+    post:
+      summary: Refresh access token
+      description: Generate new access token using refresh token
+      tags:
+        - Authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /me:
+    get:
+      summary: Get current user profile
+      description: Returns the profile of the authenticated user
+      tags:
+        - Profile
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  tenant_profile:
+                    $ref: '#/components/schemas/TenantProfile'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Update user profile
+      description: Updates the profile of the authenticated user
+      tags:
+        - Profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /change-password:
+    post:
+      summary: Change user password
+      description: Changes the password for the authenticated user
+      tags:
+        - Profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Password changed successfully"
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /.well-known/jwks.json:
+    get:
+      summary: Get JSON Web Key Set
+      description: Returns the public keys used to verify JWT signatures
+      tags:
+        - Authentication
+      security: []
+      responses:
+        '200':
+          description: JWKS retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JWKSResponse'
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Authentication
+    description: User authentication endpoints
+  - name: Profile
+    description: User profile management endpoints
