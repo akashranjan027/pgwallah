@@ -1,6 +1,7 @@
 """
 Mess Service - Dining and Attendance Management
 """
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -8,11 +9,23 @@ from app.api.health import router as health_router
 from app.api.menu import router as menu_router
 from app.api.coupons import router as coupons_router
 from app.core.config import settings
+from app.core.database import create_tables
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup/shutdown"""
+    # Startup: create database tables
+    await create_tables()
+    yield
+    # Shutdown: cleanup if needed
+
 
 app = FastAPI(
     title="PGwallah Mess Service",
     description="Dining and attendance management service",
     version=settings.VERSION,
+    lifespan=lifespan,
 )
 
 # CORS middleware

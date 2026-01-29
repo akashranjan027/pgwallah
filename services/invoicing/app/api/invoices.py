@@ -2,10 +2,11 @@
 Invoice API endpoints with GST compliance and PDF generation
 """
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import List, Optional
 
+import httpx
 import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import and_, func, select
@@ -159,9 +160,23 @@ async def generate_monthly_invoices(
     # Get tenant IDs to process
     tenant_ids = request.tenant_ids
     if not tenant_ids:
-        # TODO: Fetch all active tenants from booking service
-        # For now, assume we have the list
-        pass
+        # Fetch all active tenants from booking service
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(
+                    f"{settings.BOOKING_SERVICE_URL}/requests",
+                    params={"status": "confirmed", "limit": 1000}
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    tenant_ids = list(set(
+                        uuid.UUID(req["tenant_id"]) 
+                        for req in data.get("items", []) 
+                        if req.get("tenant_id")
+                    ))
+                    logger.info("Fetched active tenants from booking service", count=len(tenant_ids))
+        except Exception as e:
+            logger.warning("Failed to fetch tenants from booking service", error=str(e))
 
     for tenant_id in tenant_ids or []:
         try:
@@ -367,9 +382,69 @@ async def generate_tenant_monthly_invoice(
         )
         return existing
 
-    # TODO: Fetch rent amount from booking service
-    # TODO: Fetch mess charges from mess service
-    # For now, create a sample invoice structure
+    # Fetch rent amount from booking service
+    rent_amount = Decimal('15000.00')  # Default fallback
+    room_no = "N/A"
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"{settings.BOOKING_SERVICE_URL}/requests",
+                params={"tenant_id": str(tenant_id), "status": "confirmed"}
+            )
+            if response.status_code == 200:
+                data = response.json()
+                bookings = data.get("items", [])
+                if bookings:
+                    booking = bookings[0]
+                    # Fetch room details for rent amount
+                    room_id = booking.get("room_id")
+                    if room_id:
+                        room_resp = await client.get(f"{settings.BOOKING_SERVICE_URL}/rooms/{room_id}")
+                        if room_resp.status_code == 200:
+                            room_data = room_resp.json()
+                            rent_amount = Decimal(str(room_data.get("price_per_month", 15000)))
+                            room_no = room_data.get("room_number", "N/A")
+                            logger.info("Fetched rent amount from booking", rent=float(rent_amount))
+    except Exception as e:
+        logger.warning("Failed to fetch booking data", error=str(e))
+
+    # Fetch mess charges from mess service
+    mess_charges = Decimal('0.00')
+    coupon_count = 0
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"{settings.MESS_SERVICE_URL}/coupons",
+                params={
+                    "tenant_id": str(tenant_id),
+                    "include_used": "true"
+                }
+            )
+            if response.status_code == 200:
+                coupons = response.json()
+                # Filter coupons for the billing period
+                period_coupons = []
+                for c in coupons:
+                    if c.get("is_used"):
+                        # Handle timezone-aware datetime comparison
+                        coupon_date_str = c.get("for_date", "")
+                        try:
+                            coupon_datetime = datetime.fromisoformat(coupon_date_str)
+                            # Ensure timezone-aware comparison
+                            if coupon_datetime.tzinfo is None:
+                                coupon_datetime = coupon_datetime.replace(tzinfo=timezone.utc)
+                            coupon_date = coupon_datetime.date()
+                            if period_start.date() <= coupon_date <= period_end.date():
+                                period_coupons.append(c)
+                        except (ValueError, TypeError):
+                            logger.warning("Invalid coupon date format", coupon_id=c.get("id"), date=coupon_date_str)
+                            continue
+                coupon_count = len(period_coupons)
+                # Use configurable meal rate
+                mess_charges = settings.MEAL_RATE * coupon_count
+                logger.info("Fetched mess charges", coupons=coupon_count, charges=float(mess_charges))
+    except httpx.RequestError as e:
+        logger.warning("Failed to fetch mess data", error=str(e))
 
     # Generate invoice number
     current_fy = get_current_financial_year()
@@ -392,23 +467,34 @@ async def generate_tenant_monthly_invoice(
         period_start=period_start,
         period_end=period_end,
         due_date=period_end + timedelta(days=7),  # 7 days after month end
-        place_of_supply="Karnataka",
+        place_of_supply=settings.PLACE_OF_SUPPLY,
         subtotal=Decimal('0.00'),  # Will be calculated from items
         tax_amount=Decimal('0.00'),
         total_amount=Decimal('0.00'),
     )
 
-    # Sample invoice items (in real implementation, fetch from other services)
+    # Build invoice items from fetched data
     items = [
         {
-            "description": f"Room Rent - {period_start.strftime('%B %Y')}",
+            "description": f"Room Rent (Room {room_no}) - {period_start.strftime('%B %Y')}",
             "quantity": Decimal('1.00'),
-            "unit_price": Decimal('15000.00'),  # ₹15,000 rent
+            "unit_price": rent_amount,
             "tax_type": TaxType.EXEMPT,  # Rent is usually exempt
             "tax_rate": Decimal('0.00'),
             "hsn_code": "997212",  # HSN for accommodation
         }
     ]
+    
+    # Add mess charges if any
+    if mess_charges > 0:
+        items.append({
+            "description": f"Mess Charges ({coupon_count} meals) - {period_start.strftime('%B %Y')}",
+            "quantity": Decimal(str(coupon_count)),
+            "unit_price": Decimal('50.00'),
+            "tax_type": TaxType.CGST_SGST,  # Food service taxable at 5%
+            "tax_rate": Decimal('5.00'),
+            "hsn_code": "996331",  # HSN for catering services
+        })
 
     subtotal = Decimal('0.00')
     tax_amount = Decimal('0.00')

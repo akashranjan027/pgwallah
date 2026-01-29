@@ -63,9 +63,11 @@ class Settings(BaseSettings):
     MINIO_SECURE: bool = Field(default=False)
 
     # External Services
-    AUTH_SERVICE_URL: str = Field(default="http://localhost:8010")
-    BOOKING_SERVICE_URL: str = Field(default="http://localhost:8020")
-    INVOICING_SERVICE_URL: str = Field(default="http://localhost:8040")
+    AUTH_SERVICE_URL: str = Field(default="http://auth:8010")
+    BOOKING_SERVICE_URL: str = Field(default="http://booking:8020")
+    INVOICING_SERVICE_URL: str = Field(default="http://invoicing:8040")
+    MESS_SERVICE_URL: str = Field(default="http://mess:8050")
+    NOTIFICATION_SERVICE_URL: str = Field(default="http://notification:8070")
 
     # Payment Settings
     DEFAULT_CURRENCY: str = Field(default="INR")

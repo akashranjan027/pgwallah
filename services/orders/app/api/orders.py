@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import List, Optional
 
+import httpx
 import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import and_, select, update, func
@@ -112,9 +113,52 @@ async def create_order(
     # Apply coupon discount if provided
     coupon_discount = Decimal('0.00')
     if request.coupon_id:
-        # TODO: Validate coupon with mess service
-        # For now, assume coupon is valid
-        coupon_discount = min(subtotal, total_amount)  # Can use full amount as coupon
+        # Validate coupon with mess service
+        coupon_valid = False
+        if settings.MESS_SERVICE_URL:
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    response = await client.get(
+                        f"{settings.MESS_SERVICE_URL}/api/coupons/validate",
+                        params={"coupon_id": request.coupon_id}
+                    )
+                    if response.status_code == 200:
+                        validation_result = response.json()
+                        coupon_valid = validation_result.get("valid", False)
+                        if not coupon_valid:
+                            reason = validation_result.get("reason", "unknown")
+                            raise HTTPException(
+                                status_code=status.HTTP_400_BAD_REQUEST,
+                                detail=f"Invalid coupon: {reason}"
+                            )
+                        # Mark coupon as used
+                        await client.post(
+                            f"{settings.MESS_SERVICE_URL}/api/coupons/redeem",
+                            json={"coupon_id": request.coupon_id}
+                        )
+                        coupon_discount = min(subtotal, total_amount)  # Can use full amount as coupon
+                        logger.info("Coupon validated and redeemed", coupon_id=request.coupon_id)
+            except httpx.RequestError as e:
+                logger.warning("Failed to validate coupon", error=str(e))
+                # Only allow fallback in development mode with explicit config
+                if settings.ALLOW_COUPON_FALLBACK:
+                    logger.warning("Coupon validation failed, using fallback (ALLOW_COUPON_FALLBACK=true)")
+                    coupon_discount = min(subtotal, total_amount)
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        detail="Coupon service unavailable. Please try again later."
+                    )
+        else:
+            # No mess service configured; accept coupon only in dev mode
+            if settings.ALLOW_COUPON_FALLBACK:
+                logger.warning("No mess service configured, using coupon fallback (ALLOW_COUPON_FALLBACK=true)")
+                coupon_discount = min(subtotal, total_amount)
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Coupon service not configured"
+                )
 
     final_amount = total_amount - coupon_discount
 
