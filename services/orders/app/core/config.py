@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     # External services
     MESS_SERVICE_URL: Optional[str] = Field(default=None)  # e.g. http://mess:8050
 
+    # Coupon validation fallback (set to False in production)
+    ALLOW_COUPON_FALLBACK: bool = Field(default=True)
+
     # CORS
     ALLOWED_ORIGINS: List[str] = Field(
         default=[

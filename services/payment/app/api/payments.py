@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Dict, Optional, List
 
+import httpx
 import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy import select, update
@@ -679,13 +680,63 @@ async def create_dummy_rent_payment(
     )
     db.add(rent_payment)
 
-    # Note: Optionally create ledger entries for dummy flows (future)
-    # TODO: create ledger entries for rent (rent_receivable -> rent_revenue)
-
+    # Create ledger entries for rent payment
+    transaction_id = f"RENT_{rent_payment.id}"
+    
+    # Debit: Cash/Bank (Asset increases)
+    cash_entry = Ledger(
+        tenant_id=request.tenant_id,
+        transaction_id=transaction_id,
+        account="cash_and_bank",
+        debit=request.amount,
+        description=f"Rent payment received for room {request.room_no}",
+        reference_type="rent_payment",
+        reference_id=rent_payment.id,
+    )
+    
+    # Credit: Rent Revenue (Revenue increases)
+    revenue_entry = Ledger(
+        tenant_id=request.tenant_id,
+        transaction_id=transaction_id,
+        account="rent_revenue",
+        credit=request.amount,
+        description=f"Rent revenue for room {request.room_no}",
+        reference_type="rent_payment",
+        reference_id=rent_payment.id,
+    )
+    
+    db.add_all([cash_entry, revenue_entry])
     await db.commit()
     await db.refresh(rent_payment)
 
-    # TODO: generate invoice via invoicing service
+    # Generate invoice via invoicing service
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            invoice_data = {
+                "tenant_id": str(request.tenant_id),
+                "invoice_type": "rent",
+                "due_date": (request.due_date or datetime.utcnow()).isoformat(),
+                "items": [{
+                    "description": f"Room Rent - Room {request.room_no}",
+                    "quantity": 1,
+                    "unit_price": float(request.amount),
+                    "tax_type": "exempt",
+                    "tax_rate": 0,
+                    "hsn_code": "997212"
+                }]
+            }
+            response = await client.post(
+                f"{settings.INVOICING_SERVICE_URL}/api/invoices/",
+                json=invoice_data
+            )
+            if response.status_code == 201:
+                logger.info("Invoice generated for rent payment", invoice_data=response.json())
+            else:
+                logger.warning("Failed to generate invoice", status=response.status_code)
+    except httpx.RequestError as e:
+        logger.warning("Invoice generation failed - request error", error=str(e))
+    except httpx.TimeoutException as e:
+        logger.warning("Invoice generation failed - timeout", error=str(e))
     # Emit event for invoicing/notifications
     background_tasks.add_task(
         publish_payment_event,

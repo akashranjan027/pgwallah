@@ -1,13 +1,51 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import TenantNav from '@/components/nav/TenantNav';
-import { useAuth } from '@/store/auth-store';
-import Link from 'next/link';
+import { useAuth, useUser } from '@/store/auth-store';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { RefreshCw, FileText, Download, Calendar, IndianRupee, Mail } from 'lucide-react';
+import { API_CONFIG } from '@/config/api';
+import { toast } from 'react-hot-toast';
+
+interface Invoice {
+  id: string;
+  invoice_number: string;
+  amount: number;
+  status: string;
+  due_date: string;
+  paid_at?: string;
+  created_at: string;
+  items?: { description: string; amount: number }[];
+}
 
 export default function TenantInvoicesPage() {
   const router = useRouter();
   const { isAuthenticated, isLoading, getProfile } = useAuth();
+  const { user } = useUser();
+
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const tenantId = user?.id;
+
+  const fetchInvoices = useCallback(async () => {
+    if (!tenantId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/invoices?tenant_id=${tenantId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setInvoices(data.invoices || data.items || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch invoices:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [tenantId]);
 
   useEffect(() => {
     const init = async () => {
@@ -26,13 +64,46 @@ export default function TenantInvoicesPage() {
     }
   }, [isLoading, isAuthenticated, router]);
 
+  useEffect(() => {
+    if (isAuthenticated && tenantId) {
+      fetchInvoices();
+    }
+  }, [isAuthenticated, tenantId, fetchInvoices]);
+
+  const downloadPDF = (invoiceId: string) => {
+    window.open(`${API_CONFIG.BASE_URL}/api/invoices/${invoiceId}/pdf`, '_blank');
+  };
+
+  const requestEmail = async (invoiceId: string) => {
+    try {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/invoices/${invoiceId}/send`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        toast.success('Invoice sent to your email!');
+      } else {
+        toast.error('Failed to send invoice');
+      }
+    } catch {
+      toast.error('Failed to send invoice');
+    }
+  };
+
+  const getStatusVariant = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return 'default';
+      case 'overdue':
+        return 'destructive';
+      default:
+        return 'secondary';
+    }
+  };
+
   if (isLoading || !isAuthenticated) {
     return (
-      <div className="min-h-screen grid place-items-center bg-gray-50">
-        <div className="flex items-center space-x-3 text-gray-600">
-          <div className="spinner-lg" />
-          <span>Loading invoices…</span>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -43,40 +114,84 @@ export default function TenantInvoicesPage() {
         <title>Tenant • Invoices</title>
       </Head>
 
-      <TenantNav />
+      <div className="min-h-screen bg-muted/50">
+        <TenantNav />
 
-      <main className="mx-auto max-w-6xl px-4 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Invoices</h1>
-          <p className="mt-1 text-gray-600">
-            View your invoices, download PDFs, and request email copies.
-          </p>
-        </div>
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold tracking-tight">Invoices</h1>
+            <p className="mt-1 text-muted-foreground">
+              View your invoices, download PDFs, and request email copies.
+            </p>
+          </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">My Invoices</h2>
-            <div className="flex items-center gap-2">
-              <Link
-                href="#"
-                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-              >
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <div className="space-y-1">
+                <CardTitle>My Invoices</CardTitle>
+                <CardDescription>
+                  List of all generated invoices for your tenancy.
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={fetchInvoices} disabled={loading}>
+                <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
-              </Link>
-            </div>
-          </div>
-          <p className="mt-2 text-sm text-gray-600">
-            This is a placeholder. Next step is to list invoices from the API.
-          </p>
-          <div className="mt-3 text-xs text-gray-400">
-            API: /api/invoices (via gateway), PDF: /api/invoices/:id/pdf, Send: /api/invoices/:id/send
-          </div>
-
-          <div className="mt-4 rounded-lg border border-dashed border-gray-300 p-6 text-sm text-gray-500">
-            No invoices loaded yet. Connect table to the invoicing service to display data.
-          </div>
-        </div>
-      </main>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : invoices.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground border-2 border-dashed rounded-lg mt-4">
+                  <FileText className="h-12 w-12 mb-4 opacity-20" />
+                  <h3 className="text-lg font-medium">No Invoices Found</h3>
+                  <p className="max-w-sm mt-2 mb-4">You don't have any invoices yet. Invoices will appear here once generated by the admin.</p>
+                </div>
+              ) : (
+                <div className="space-y-3 mt-4">
+                  {invoices.map((invoice) => (
+                    <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className="p-2 bg-muted rounded-full">
+                          <FileText className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="font-medium">#{invoice.invoice_number}</p>
+                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <IndianRupee className="h-3 w-3" />
+                              {invoice.amount.toLocaleString()}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              Due: {new Date(invoice.due_date).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Badge variant={getStatusVariant(invoice.status)}>
+                          {invoice.status}
+                        </Badge>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => downloadPDF(invoice.id)} title="Download PDF">
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => requestEmail(invoice.id)} title="Send to Email">
+                            <Mail className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </main>
+      </div>
     </>
   );
 }

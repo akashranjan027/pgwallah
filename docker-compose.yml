@@ -289,7 +289,7 @@ services:
       dockerfile: Dockerfile
     container_name: pgwallah-booking
     environment:
-      DATABASE_URL: postgresql://booking_user:booking_password@postgres-booking:5432/booking_db
+      DATABASE_URL: postgresql+asyncpg://booking_user:booking_password@postgres-booking:5432/booking_db
       REDIS_URL: redis://:redis_password@redis:6379/1
       AUTH_SERVICE_URL: http://auth:8010
       PAYMENT_SERVICE_URL: http://payment:8030
@@ -396,7 +396,7 @@ services:
       target: development
     container_name: pgwallah-mess
     environment:
-      DATABASE_URL: postgresql://mess_user:mess_password@postgres-mess:5432/mess_db
+      DATABASE_URL: postgresql+asyncpg://mess_user:mess_password@postgres-mess:5432/mess_db
       REDIS_URL: redis://:redis_password@redis:6379/4
       RABBITMQ_URL: amqp://rabbitmq_user:rabbitmq_password@rabbitmq:5672/
       ENVIRONMENT: development
@@ -427,7 +427,7 @@ services:
       target: development
     container_name: pgwallah-orders
     environment:
-      DATABASE_URL: postgresql://orders_user:orders_password@postgres-orders:5432/orders_db
+      DATABASE_URL: postgresql+asyncpg://orders_user:orders_password@postgres-orders:5432/orders_db
       REDIS_URL: redis://:redis_password@redis:6379/5
       RABBITMQ_URL: amqp://rabbitmq_user:rabbitmq_password@rabbitmq:5672/
       MESS_SERVICE_URL: http://mess:8050
@@ -460,7 +460,7 @@ services:
       target: development
     container_name: pgwallah-notification
     environment:
-      DATABASE_URL: postgresql://notification_user:notification_password@postgres-notification:5432/notification_db
+      DATABASE_URL: postgresql+asyncpg://notification_user:notification_password@postgres-notification:5432/notification_db
       REDIS_URL: redis://:redis_password@redis:6379/6
       RABBITMQ_URL: amqp://rabbitmq_user:rabbitmq_password@rabbitmq:5672/
       AWS_ACCESS_KEY_ID: dummy_access_key
