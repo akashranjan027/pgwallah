@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  
+
   // Environment variables
   env: {
     NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000',
@@ -81,7 +81,7 @@ const nextConfig = {
   experimental: {
     // Enable if you want to use app directory
     // appDir: true,
-    
+
     // Server components
     serverComponentsExternalPackages: ['axios'],
   },
@@ -101,28 +101,19 @@ const nextConfig = {
 
   // Custom webpack config
   webpack: (config, { dev, isServer }) => {
-    // Production optimizations
-    if (!dev && !isServer) {
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        // Reduce bundle size by aliasing React to production build
-        react: 'react/index.js',
-        'react-dom': 'react-dom/index.js',
-      };
-    }
-
+    // Production optimizations can be added here if needed
     return config;
   },
 
   // Output configuration
   output: process.env.NODE_ENV === 'production' ? 'standalone' : undefined,
-  
+
   // Trailing slash
   trailingSlash: false,
 
   // Power by header
   poweredByHeader: false,
-  
+
   // Compress
   compress: true,
 };

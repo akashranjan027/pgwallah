@@ -28,19 +28,20 @@ export default function DemoPage() {
     // Check service health
     const checkServices = async () => {
       const updatedServices = [...services];
-      
+
       for (let i = 0; i < updatedServices.length; i++) {
+        const service = updatedServices[i];
+        if (!service) continue;
         try {
-          const response = await fetch(`http://localhost:${updatedServices[i].port}/health`, {
+          const response = await fetch(`http://localhost:${service.port}/health`, {
             method: 'GET',
-            timeout: 5000,
           });
-          updatedServices[i].status = response.ok ? 'healthy' : 'unhealthy';
+          service.status = response.ok ? 'healthy' : 'unhealthy';
         } catch (error) {
-          updatedServices[i].status = 'unhealthy';
+          service.status = 'unhealthy';
         }
       }
-      
+
       setServices(updatedServices);
     };
 
@@ -113,7 +114,7 @@ export default function DemoPage() {
             PGwallah Platform Demo
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Experience our complete microservices-based PG management platform. 
+            Experience our complete microservices-based PG management platform.
             Built for the Indian market with UPI payments, GST compliance, and modern architecture.
           </p>
         </div>
@@ -168,7 +169,7 @@ export default function DemoPage() {
         <div className="mb-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Sample Tenant Dashboard</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
+
             {/* Tenant Profile */}
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Tenant Profile</h3>
@@ -271,7 +272,7 @@ export default function DemoPage() {
         <div className="mb-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Key Features Showcase</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            
+
             {/* UPI Payments */}
             <div className="bg-white rounded-lg shadow-sm p-6 text-center">
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
@@ -327,15 +328,15 @@ export default function DemoPage() {
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Interactive API Demo</h2>
           <div className="bg-white rounded-lg shadow-sm p-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              
+
               {/* Working Endpoints */}
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">✅ Working Endpoints</h3>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between p-2 bg-green-50 rounded">
                     <span className="text-sm font-mono">GET /api/auth/health</span>
-                    <a 
-                      href="http://localhost:8000/api/auth/health" 
+                    <a
+                      href="http://localhost:8000/api/auth/health"
                       target="_blank"
                       className="text-green-600 hover:text-green-700 text-xs"
                     >
@@ -344,8 +345,8 @@ export default function DemoPage() {
                   </div>
                   <div className="flex items-center justify-between p-2 bg-blue-50 rounded">
                     <span className="text-sm font-mono">GET /api/payments/health</span>
-                    <a 
-                      href="http://localhost:8000/api/payments/health" 
+                    <a
+                      href="http://localhost:8000/api/payments/health"
                       target="_blank"
                       className="text-blue-600 hover:text-blue-700 text-xs"
                     >
@@ -354,8 +355,8 @@ export default function DemoPage() {
                   </div>
                   <div className="flex items-center justify-between p-2 bg-purple-50 rounded">
                     <span className="text-sm font-mono">GET /api/orders/health</span>
-                    <a 
-                      href="http://localhost:8000/api/orders/health" 
+                    <a
+                      href="http://localhost:8000/api/orders/health"
                       target="_blank"
                       className="text-purple-600 hover:text-purple-700 text-xs"
                     >
@@ -371,8 +372,8 @@ export default function DemoPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
                     <span className="text-sm">Kong Admin API</span>
-                    <a 
-                      href="http://localhost:8001" 
+                    <a
+                      href="http://localhost:8001"
                       target="_blank"
                       className="text-gray-600 hover:text-gray-700 text-xs"
                     >
@@ -381,8 +382,8 @@ export default function DemoPage() {
                   </div>
                   <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
                     <span className="text-sm">RabbitMQ Management</span>
-                    <a 
-                      href="http://localhost:15672" 
+                    <a
+                      href="http://localhost:15672"
                       target="_blank"
                       className="text-gray-600 hover:text-gray-700 text-xs"
                     >
@@ -391,8 +392,8 @@ export default function DemoPage() {
                   </div>
                   <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
                     <span className="text-sm">MinIO Console</span>
-                    <a 
-                      href="http://localhost:9001" 
+                    <a
+                      href="http://localhost:9001"
                       target="_blank"
                       className="text-gray-600 hover:text-gray-700 text-xs"
                     >
