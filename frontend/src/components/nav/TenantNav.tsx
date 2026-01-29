@@ -1,9 +1,6 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/store/auth-store';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/utils/cn';
-import { LogOut } from 'lucide-react';
 
 function NavLink({
   href,
@@ -17,12 +14,12 @@ function NavLink({
   return (
     <Link
       href={href}
-      className={cn(
+      className={[
         'inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors',
         current
-          ? 'bg-primary/10 text-primary'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-      )}
+          ? 'bg-primary-50 text-primary-700'
+          : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900',
+      ].join(' ')}
     >
       {label}
     </Link>
@@ -39,24 +36,21 @@ export default function TenantNav() {
     { href: '/tenant/payments', label: 'Payments' },
     { href: '/tenant/invoices', label: 'Invoices' },
     { href: '/tenant/orders', label: 'Orders' },
-    { href: '/tenant/mess', label: 'Mess' },
-    { href: '/tenant/booking', label: 'Booking' },
-    { href: '/tenant/notifications', label: 'Alerts' },
     { href: '/tenant/profile', label: 'Profile' },
   ];
 
   return (
-    <header className="sticky top-0 z-10 bg-background/80 backdrop-blur border-b">
+    <header className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-gray-200">
       <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href="/tenant" className="flex items-center gap-2">
-            <div className="h-9 w-9 rounded-lg bg-primary text-primary-foreground grid place-items-center font-bold">
+            <div className="h-9 w-9 rounded-lg bg-primary-600 text-white grid place-items-center font-bold">
               PG
             </div>
-            <div className="text-lg font-semibold">PGwallah</div>
+            <div className="text-lg font-semibold text-gray-900">PGwallah</div>
           </Link>
-          <div className="ml-2 px-2 py-0.5 rounded bg-secondary text-secondary-foreground text-xs font-medium uppercase">
-            {(user?.role || 'tenant')}
+          <div className="ml-2 px-2 py-0.5 rounded bg-gray-100 text-xs text-gray-600">
+            {(user?.role || 'tenant').toString().toUpperCase()}
           </div>
         </div>
 
@@ -72,26 +66,28 @@ export default function TenantNav() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Button variant="destructive" size="sm" onClick={logout}>
-            <LogOut className="mr-2 h-4 w-4" />
+          <button
+            onClick={logout}
+            className="inline-flex items-center rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
+          >
             Logout
-          </Button>
+          </button>
         </div>
       </div>
 
       {/* Mobile nav */}
-      <div className="md:hidden border-t bg-background px-2 py-2">
+      <div className="md:hidden border-t border-gray-200 bg-white px-2 py-2">
         <div className="flex flex-wrap gap-2">
           {items.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={cn(
+              className={[
                 'inline-flex items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
                 router.pathname === item.href
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-              )}
+                  ? 'bg-primary-50 text-primary-700'
+                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900',
+              ].join(' ')}
             >
               {item.label}
             </Link>

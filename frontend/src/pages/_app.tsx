@@ -32,36 +32,36 @@ function MyApp({ Component, pageProps }: AppProps) {
   // Prevent hydration mismatch by not rendering until client-side
   if (!isClient) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600"></div>
       </div>
     );
   }
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-background font-sans antialiased">
+      <div className="min-h-screen bg-gray-50">
         <Component {...pageProps} />
         <Toaster
           position="top-right"
           toastOptions={{
             duration: 4000,
             style: {
-              background: 'hsl(var(--foreground))',
-              color: 'hsl(var(--background))',
+              background: '#363636',
+              color: '#fff',
             },
             success: {
               duration: 3000,
               iconTheme: {
-                primary: 'hsl(var(--primary))',
-                secondary: 'hsl(var(--primary-foreground))',
+                primary: '#22c55e',
+                secondary: '#fff',
               },
             },
             error: {
               duration: 5000,
               iconTheme: {
-                primary: 'hsl(var(--destructive))',
-                secondary: 'hsl(var(--destructive-foreground))',
+                primary: '#ef4444',
+                secondary: '#fff',
               },
             },
           }}

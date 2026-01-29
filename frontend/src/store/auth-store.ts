@@ -132,14 +132,14 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
       refreshTokens: async () => {
         const { refreshToken } = get();
-
+        
         if (!refreshToken) {
           throw new Error('No refresh token available');
         }
 
         try {
           const response: TokenResponse = await apiClient.refreshTokens(refreshToken);
-
+          
           const { access_token, refresh_token, user } = response;
 
           // Set tokens in API client
@@ -181,7 +181,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         set({ isLoading: true });
         try {
           await apiClient.changePassword(data.current_password, data.new_password);
-
+          
           set({ isLoading: false });
 
           // Note: The backend revokes all refresh tokens on password change
@@ -195,15 +195,14 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       getProfile: async () => {
         try {
           const profileResponse: ProfileResponse = await apiClient.getProfile();
-
+          
           set({
             user: profileResponse.user,
             tenantProfile: profileResponse.tenant_profile || null,
           });
         } catch (error) {
           // If profile fetch fails, user might need to re-authenticate
-          const errorCode = (error as { code?: string })?.code;
-          if (errorCode === 'AUTH_002' || errorCode === 'AUTH_003') {
+          if (error.code === 'AUTH_002' || error.code === 'AUTH_003') {
             get().logout();
           }
           throw error;
@@ -245,7 +244,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           try {
             // Verify tokens are still valid by fetching profile
             await get().getProfile();
-
+            
             set({ isAuthenticated: true });
           } catch (error) {
             // Tokens are invalid, try to refresh

@@ -4,29 +4,22 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import TenantNav from '@/components/nav/TenantNav';
 import { useAuth, useUser } from '@/store/auth-store';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight } from 'lucide-react';
 
 function ServiceCard(props: { title: string; description: string; href: string; badge?: string }) {
   const { title, description, href, badge } = props;
   return (
-    <Link href={href}>
-      <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
-        <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-          <CardTitle className="text-lg font-semibold">{title}</CardTitle>
-          {badge && (
-            <span className="px-2 py-0.5 rounded text-xs bg-secondary text-secondary-foreground font-medium">
-              {badge}
-            </span>
-          )}
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">{description}</p>
-          <div className="flex items-center text-sm text-primary font-medium">
-            Open <ArrowRight className="ml-1 h-4 w-4" />
-          </div>
-        </CardContent>
-      </Card>
+    <Link
+      href={href}
+      className="rounded-xl border border-gray-200 bg-white p-5 hover:shadow-md transition group"
+    >
+      <div className="flex items-start justify-between">
+        <h3 className="text-lg font-semibold text-gray-900 group-hover:text-primary-700">{title}</h3>
+        {badge ? (
+          <span className="px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">{badge}</span>
+        ) : null}
+      </div>
+      <p className="mt-2 text-sm text-gray-600">{description}</p>
+      <div className="mt-3 text-sm text-primary-700 font-medium">Open →</div>
     </Link>
   );
 }
@@ -56,8 +49,11 @@ export default function TenantHomePage() {
 
   if (isLoading || !isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="min-h-screen grid place-items-center bg-gray-50">
+        <div className="flex items-center space-x-3 text-gray-600">
+          <div className="spinner-lg" />
+          <span>Loading your tenant home…</span>
+        </div>
       </div>
     );
   }
@@ -73,12 +69,12 @@ export default function TenantHomePage() {
       <main className="mx-auto max-w-6xl px-4 py-8">
         {/* Greeting */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-2xl font-bold text-gray-900">
             Hello, {user?.full_name || user?.email || 'Tenant'} 👋
           </h1>
-          <p className="mt-1 text-muted-foreground">
+          <p className="mt-1 text-gray-600">
             Choose a service below or go to your{' '}
-            <Link href="/dashboard" className="text-primary font-medium hover:underline">
+            <Link href="/dashboard" className="text-primary-700 font-medium hover:underline">
               Dashboard
             </Link>
             .
@@ -87,12 +83,12 @@ export default function TenantHomePage() {
 
         {/* Services available now */}
         <section>
-          <h2 className="text-lg font-semibold mb-4">Available Services</h2>
-          <p className="text-sm text-muted-foreground mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Available Services</h2>
+          <p className="text-sm text-gray-600">
             These services are live through the API gateway and ready to use.
           </p>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <ServiceCard
               title="Payments"
               href="/tenant/payments"
@@ -120,29 +116,29 @@ export default function TenantHomePage() {
           </div>
         </section>
 
-        {/* Additional Services */}
+        {/* Coming soon */}
         <section className="mt-10">
-          <h2 className="text-lg font-semibold mb-4">More Services</h2>
-          <p className="text-sm text-muted-foreground mb-4">Additional features for your stay.</p>
+          <h2 className="text-lg font-semibold text-gray-900">Coming Soon</h2>
+          <p className="text-sm text-gray-600">These will appear here when enabled.</p>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <ServiceCard
               title="Room Booking"
-              href="/tenant/booking"
+              href="#"
               description="Browse properties, check availability, and request bookings."
-              badge="Live"
+              badge="Soon"
             />
             <ServiceCard
-              title="Mess & Menu"
-              href="/tenant/mess"
-              description="Daily mess menu, meal coupons, and attendance."
-              badge="Live"
+              title="Mess & Attendance"
+              href="#"
+              description="Daily mess menu, attendance via QR, and meal coupons."
+              badge="Soon"
             />
             <ServiceCard
               title="Notifications"
-              href="/tenant/notifications"
+              href="#"
               description="SMS and email alerts for invoices, payments, and updates."
-              badge="Live"
+              badge="Soon"
             />
           </div>
         </section>

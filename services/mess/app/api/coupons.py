@@ -1,40 +1,34 @@
 """
 Mess Coupons endpoints
 
-Uses PostgreSQL for persistence via SQLAlchemy models.
+Note: For development this uses in-memory stores. Replace with DB models in production.
 """
 from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
-from typing import List, Optional, Literal
-from uuid import UUID
+from typing import Dict, List, Optional, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select, and_
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.database import get_db
-from app.models import MealCoupon, TimeSlot as TimeSlotEnum
 
 router = APIRouter()
 
 TimeSlot = Literal["breakfast", "lunch", "snacks", "dinner"]
 
 
-# Pydantic schemas
-class CouponResponse(BaseModel):
+class Coupon(BaseModel):
     id: str
     tenant_id: str
-    slot: str
+    slot: TimeSlot
     for_date: date
     issued_at: datetime
     used_at: Optional[datetime] = None
     is_used: bool = False
 
-    class Config:
-        from_attributes = True
+
+# In-memory coupon store: coupon_id -> Coupon
+COUPONS: Dict[str, Coupon] = {}
 
 
 class IssueCouponsPayload(BaseModel):
@@ -46,172 +40,89 @@ class IssueCouponsPayload(BaseModel):
     )
 
 
-class RedeemPayload(BaseModel):
-    coupon_id: str
-
-
-def _coupon_to_dict(coupon: MealCoupon) -> dict:
-    """Convert SQLAlchemy model to dict for response."""
-    return {
-        "id": str(coupon.id),
-        "tenant_id": str(coupon.tenant_id),
-        "slot": coupon.slot.value if hasattr(coupon.slot, 'value') else str(coupon.slot),
-        "for_date": coupon.for_date,
-        "issued_at": coupon.created_at,
-        "used_at": coupon.used_at,
-        "is_used": coupon.is_used,
-    }
-
-
 @router.get("/coupons")
 async def list_coupons(
     tenant_id: Optional[str] = Query(default=None, description="Filter by tenant_id"),
     for_date: Optional[date] = Query(default=None, description="Filter by date"),
     include_used: bool = Query(default=False, description="Include used coupons"),
-    db: AsyncSession = Depends(get_db)
-) -> List[dict]:
+) -> List[Coupon]:
     """List (optionally filtered) coupons."""
-    query = select(MealCoupon)
-    
-    if tenant_id:
-        try:
-            tenant_uuid = UUID(tenant_id)
-            query = query.where(MealCoupon.tenant_id == tenant_uuid)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid tenant_id format")
-    
-    if for_date:
-        query = query.where(MealCoupon.for_date == for_date)
-    
-    if not include_used:
-        query = query.where(MealCoupon.is_used.is_(False))
-    
+    results: List[Coupon] = []
+    for c in COUPONS.values():
+        if tenant_id and c.tenant_id != tenant_id:
+            continue
+        if for_date and c.for_date != for_date:
+            continue
+        if (not include_used) and c.is_used:
+            continue
+        results.append(c)
     # Sort by date, then slot
-    query = query.order_by(MealCoupon.for_date, MealCoupon.slot)
-    
-    result = await db.execute(query)
-    coupons = result.scalars().all()
-    
-    return [_coupon_to_dict(c) for c in coupons]
+    order_map = {"breakfast": 1, "lunch": 2, "snacks": 3, "dinner": 4}
+    results.sort(key=lambda x: (x.for_date, order_map.get(x.slot, 99)))
+    return results
 
 
 @router.post("/coupons", status_code=status.HTTP_201_CREATED)
-async def issue_coupons(
-    payload: IssueCouponsPayload,
-    db: AsyncSession = Depends(get_db)
-) -> List[dict]:
+async def issue_coupons(payload: IssueCouponsPayload) -> List[Coupon]:
     """
     Issue daily coupons for tenant. By default issues all 4 meal slots for the given date.
     Does not duplicate existing coupons for the same tenant/date/slot.
     """
-    try:
-        tenant_uuid = UUID(payload.tenant_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid tenant_id format")
-    
     target_date = payload.for_date or date.today()
     slots = payload.slots or ["breakfast", "lunch", "snacks", "dinner"]
 
-    created: List[dict] = []
-    
-    for slot_name in slots:
-        slot_enum = TimeSlotEnum(slot_name)
-        
-        # Check if coupon already exists
-        existing = await db.execute(
-            select(MealCoupon).where(
-                and_(
-                    MealCoupon.tenant_id == tenant_uuid,
-                    MealCoupon.for_date == target_date,
-                    MealCoupon.slot == slot_enum
-                )
-            )
-        )
-        if existing.scalar_one_or_none():
-            # Skip duplicate
+    created: List[Coupon] = []
+    # Avoid duplicates for same tenant/date/slot
+    existing = {
+        (c.tenant_id, c.for_date.isoformat(), c.slot): c
+        for c in COUPONS.values()
+    }
+    for slot in slots:
+        key = (payload.tenant_id, target_date.isoformat(), slot)
+        if key in existing:
+            # skip duplicate
             continue
-        
-        coupon = MealCoupon(
-            tenant_id=tenant_uuid,
+        coupon = Coupon(
+            id=str(uuid.uuid4()),
+            tenant_id=payload.tenant_id,
+            slot=slot,  # type: ignore[arg-type]
             for_date=target_date,
-            slot=slot_enum,
+            issued_at=datetime.utcnow(),
             is_used=False,
         )
-        db.add(coupon)
-        await db.flush()
-        created.append(_coupon_to_dict(coupon))
-    
-    await db.commit()
+        COUPONS[coupon.id] = coupon
+        created.append(coupon)
     return created
 
 
+class RedeemPayload(BaseModel):
+    coupon_id: str
+
+
 @router.post("/coupons/redeem")
-async def redeem_coupon(
-    payload: RedeemPayload,
-    db: AsyncSession = Depends(get_db)
-) -> dict:
+async def redeem_coupon(payload: RedeemPayload) -> Coupon:
     """Mark a coupon as used (redeemed)."""
-    try:
-        coupon_uuid = UUID(payload.coupon_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid coupon_id format")
-    
-    result = await db.execute(select(MealCoupon).where(MealCoupon.id == coupon_uuid))
-    coupon = result.scalar_one_or_none()
-    
+    coupon = COUPONS.get(payload.coupon_id)
     if not coupon:
         raise HTTPException(status_code=404, detail="Coupon not found")
     if coupon.is_used:
         raise HTTPException(status_code=400, detail="Coupon already used")
-    
     coupon.is_used = True
     coupon.used_at = datetime.utcnow()
-    await db.commit()
-    await db.refresh(coupon)
-    
-    return _coupon_to_dict(coupon)
+    COUPONS[coupon.id] = coupon
+    return coupon
 
 
 @router.get("/coupons/validate")
-async def validate_coupon(
-    coupon_id: str,
-    db: AsyncSession = Depends(get_db)
-):
+async def validate_coupon(coupon_id: str):
     """Validate an existing coupon ID; returns basic details if valid and unused."""
-    try:
-        coupon_uuid = UUID(coupon_id)
-    except ValueError:
-        return {"valid": False, "reason": "invalid_format"}
-    
-    result = await db.execute(select(MealCoupon).where(MealCoupon.id == coupon_uuid))
-    coupon = result.scalar_one_or_none()
-    
+    coupon = COUPONS.get(coupon_id)
     if not coupon:
         return {"valid": False, "reason": "not_found"}
     if coupon.is_used:
         return {"valid": False, "reason": "already_used"}
-    
+    # Allow validating only for today or any date? Here we allow any date (can add policy later)
     return {
         "valid": True,
-        "coupon": _coupon_to_dict(coupon),
+        "coupon": coupon,
     }
-
-
-@router.get("/coupons/{coupon_id}")
-async def get_coupon(
-    coupon_id: str,
-    db: AsyncSession = Depends(get_db)
-) -> dict:
-    """Get a specific coupon by ID."""
-    try:
-        coupon_uuid = UUID(coupon_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid coupon_id format")
-    
-    result = await db.execute(select(MealCoupon).where(MealCoupon.id == coupon_uuid))
-    coupon = result.scalar_one_or_none()
-    
-    if not coupon:
-        raise HTTPException(status_code=404, detail="Coupon not found")
-    
-    return _coupon_to_dict(coupon)

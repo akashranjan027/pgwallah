@@ -8,11 +8,7 @@ import { useUser, useAuthStore } from '@/store/auth-store';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '@/store/auth-store';
 import { RegisterFormData, UserRole, RegisterRequest } from '@/types/auth';
-import { Eye, EyeOff, Building2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
 const registerSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -82,7 +78,7 @@ export default function RegisterPage() {
       };
 
       await registerUser(payload);
-
+      
       toast.success('Registration successful! Welcome to PGwallah!');
 
       // Redirect to role-specific home
@@ -91,9 +87,9 @@ export default function RegisterPage() {
       router.replace(defaultPathByRole(role));
     } catch (error: any) {
       console.error('Registration error:', error);
-
+      
       let errorMessage = 'Registration failed. Please try again.';
-
+      
       if (error?.message) {
         switch (error.code) {
           case 'CONFLICT':
@@ -109,179 +105,250 @@ export default function RegisterPage() {
             errorMessage = error.message;
         }
       }
-
+      
       toast.error(errorMessage);
     }
   };
 
   if (isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="spinner-lg"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/50 py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 flex flex-col items-center">
-          <div className="bg-primary/10 p-3 rounded-full mb-2">
-            <Building2 className="h-6 w-6 text-primary" />
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-primary-100">
+            <svg
+              className="h-6 w-6 text-primary-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+              />
+            </svg>
           </div>
-          <CardTitle className="text-2xl font-bold text-center">Create an account</CardTitle>
-          <CardDescription className="text-center">
-            Enter your details below to create your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="full_name">Full Name</Label>
-              <Input
+          <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
+            Create your PGwallah account
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Already have an account?{' '}
+            <Link
+              href="/auth/login"
+              className="font-medium text-primary-600 hover:text-primary-500 transition-colors"
+            >
+              Sign in here
+            </Link>
+          </p>
+        </div>
+
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="full_name" className="form-label form-label-required">
+                Full Name
+              </label>
+              <input
                 id="full_name"
-                placeholder="John Doe"
+                type="text"
+                autoComplete="name"
+                required
+                className={`form-input ${errors.full_name ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : ''}`}
+                placeholder="Enter your full name"
                 {...register('full_name')}
-                className={errors.full_name ? 'border-destructive' : ''}
               />
               {errors.full_name && (
-                <p className="text-sm text-destructive">{errors.full_name.message}</p>
+                <p className="form-error">{errors.full_name.message}</p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
+            <div>
+              <label htmlFor="email" className="form-label form-label-required">
+                Email address
+              </label>
+              <input
                 id="email"
                 type="email"
-                placeholder="m@example.com"
+                autoComplete="email"
+                required
+                className={`form-input ${errors.email ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : ''}`}
+                placeholder="Enter your email"
                 {...register('email')}
-                className={errors.email ? 'border-destructive' : ''}
               />
               {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
+                <p className="form-error">{errors.email.message}</p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number (Optional)</Label>
-              <Input
+            <div>
+              <label htmlFor="phone" className="form-label">
+                Phone Number
+              </label>
+              <input
                 id="phone"
                 type="tel"
+                autoComplete="tel"
+                className={`form-input ${errors.phone ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : ''}`}
                 placeholder="+919876543210"
                 {...register('phone')}
-                className={errors.phone ? 'border-destructive' : ''}
               />
               {errors.phone && (
-                <p className="text-sm text-destructive">{errors.phone.message}</p>
+                <p className="form-error">{errors.phone.message}</p>
               )}
+              <p className="form-helper">Optional. Format: +91XXXXXXXXXX</p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+            <div>
+              <label htmlFor="password" className="form-label form-label-required">
+                Password
+              </label>
               <div className="relative">
-                <Input
+                <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  required
+                  className={`form-input pr-10 ${errors.password ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : ''}`}
+                  placeholder="Create a strong password"
                   {...register('password')}
-                  className={errors.password ? 'border-destructive pr-10' : 'pr-10'}
                 />
                 <button
                   type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
+                    <EyeSlashIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                   ) : (
-                    <Eye className="h-4 w-4" />
+                    <EyeIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                   )}
                 </button>
               </div>
               {errors.password && (
-                <p className="text-sm text-destructive">{errors.password.message}</p>
+                <p className="form-error">{errors.password.message}</p>
               )}
+              <p className="form-helper">
+                Must contain uppercase, lowercase, number, and special character
+              </p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <div>
+              <label htmlFor="confirmPassword" className="form-label form-label-required">
+                Confirm Password
+              </label>
               <div className="relative">
-                <Input
+                <input
                   id="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  required
+                  className={`form-input pr-10 ${errors.confirmPassword ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : ''}`}
+                  placeholder="Confirm your password"
                   {...register('confirmPassword')}
-                  className={errors.confirmPassword ? 'border-destructive pr-10' : 'pr-10'}
                 />
                 <button
                   type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   {showConfirmPassword ? (
-                    <EyeOff className="h-4 w-4" />
+                    <EyeSlashIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                   ) : (
-                    <Eye className="h-4 w-4" />
+                    <EyeIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                   )}
                 </button>
               </div>
               {errors.confirmPassword && (
-                <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
+                <p className="form-error">{errors.confirmPassword.message}</p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="role">Account Type</Label>
+            <div>
+              <label htmlFor="role" className="form-label">
+                Account Type
+              </label>
               <select
                 id="role"
-                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="form-select"
                 {...register('role')}
               >
                 <option value={UserRole.TENANT}>Tenant</option>
                 <option value={UserRole.ADMIN}>Admin</option>
                 <option value={UserRole.STAFF}>Staff</option>
               </select>
+              <p className="form-helper">Choose your account type</p>
             </div>
+          </div>
 
-            <div className="flex items-center space-x-2">
-              <input
-                id="agree-terms"
-                type="checkbox"
-                required
-                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-              />
-              <label htmlFor="agree-terms" className="text-sm text-muted-foreground">
-                I agree to the{' '}
-                <Link href="/terms" className="text-primary hover:underline">
-                  Terms
-                </Link>{' '}
-                and{' '}
-                <Link href="/privacy" className="text-primary hover:underline">
-                  Privacy Policy
-                </Link>
-              </label>
-            </div>
+          <div className="flex items-center">
+            <input
+              id="agree-terms"
+              name="agree-terms"
+              type="checkbox"
+              required
+              className="form-checkbox"
+            />
+            <label htmlFor="agree-terms" className="ml-2 block text-sm text-gray-900">
+              I agree to the{' '}
+              <Link href="/terms" className="text-primary-600 hover:text-primary-500">
+                Terms of Service
+              </Link>{' '}
+              and{' '}
+              <Link href="/privacy" className="text-primary-600 hover:text-primary-500">
+                Privacy Policy
+              </Link>
+            </label>
+          </div>
 
-            <Button className="w-full" type="submit" disabled={isSubmitting || isLoading}>
+          <div>
+            <button
+              type="submit"
+              disabled={isSubmitting || isLoading}
+              className="btn btn-primary btn-lg w-full disabled:opacity-50"
+            >
               {isSubmitting || isLoading ? (
-                <>
-                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                <div className="flex items-center justify-center">
+                  <div className="spinner-sm mr-2"></div>
                   Creating account...
-                </>
+                </div>
               ) : (
                 'Create Account'
               )}
-            </Button>
-          </form>
-        </CardContent>
-        <CardFooter className="flex justify-center">
-          <div className="text-sm text-muted-foreground">
-            Already have an account?{' '}
-            <Link href="/auth/login" className="text-primary font-medium hover:underline">
-              Sign in
-            </Link>
+            </button>
           </div>
-        </CardFooter>
-      </Card>
+
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-gray-50 text-gray-500">
+                  Already have an account?
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-6 text-center">
+              <Link
+                href="/auth/login"
+                className="btn btn-secondary btn-lg w-full"
+              >
+                Sign in instead
+              </Link>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
